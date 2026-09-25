@@ -81,9 +81,14 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.routers.evaluering.rule=Host(`${DOMAIN_MERCANTEC:-eval.mercantec.tech}`) || Host(`${DOMAIN_MAGS:-eval.mags.dk}`)
-      - traefik.http.routers.evaluering.entrypoints=web
-      - traefik.http.routers.evaluering.service=evaluering
+      # eval.mercantec.tech
+      - traefik.http.routers.evaluering-mercantec.rule=Host(`eval.mercantec.tech`)
+      - traefik.http.routers.evaluering-mercantec.entrypoints=web
+      - traefik.http.routers.evaluering-mercantec.service=evaluering
+      # eval.mags.dk
+      - traefik.http.routers.evaluering-mags.rule=Host(`eval.mags.dk`)
+      - traefik.http.routers.evaluering-mags.entrypoints=web
+      - traefik.http.routers.evaluering-mags.service=evaluering
       - traefik.http.services.evaluering.loadbalancer.server.port=3000
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3000/']

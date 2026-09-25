@@ -14,7 +14,7 @@ Evaluering af forløb – anonymt Forms-agtigt værktøj til undervisere og elev
 - https://eval.mercantec.tech
 - https://eval.mags.dk
 
-Kun frontend eksponeres via Traefik. API og database er interne; browseren kalder `/api/*`, som Next.js rewriter til API-containeren.
+Begge peger på samme app via to Traefik-routere. Kun frontend eksponeres; API og database er interne. Browseren kalder `/api/*`, som Next.js rewriter til API-containeren.
 
 ## Hurtig start (lokalt)
 
@@ -57,8 +57,7 @@ Kræver:
 2. Tunnel ingress → Traefik (`localhost:80`)
 3. Eksternt Docker-netværk: `dokploy-network`
 4. Hemmeligheder i miljøet: `JWT_SECRET`, DB-password, `OPENAI_API_KEY` / `AI_API_KEY`
-
-Domæner kan overrides med `DOMAIN_MERCANTEC` og `DOMAIN_MAGS`.
+5. DNS: begge hostnames (`eval.mercantec.tech` og `eval.mags.dk`) skal pege ind via Cloudflare-tunnel → Traefik
 
 ## Brug (V1)
 
