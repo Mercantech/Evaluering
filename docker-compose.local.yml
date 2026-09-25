@@ -1,0 +1,26 @@
+# Lokal udvikling med host-porte (uden Dokploy/Traefik-krav):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# Åbn: http://localhost:3080  ·  API direkte: http://localhost:3081
+
+services:
+  db:
+    ports:
+      - '5433:5432'
+
+  api:
+    ports:
+      - '3081:3001'
+
+  web:
+    ports:
+      - '3080:3000'
+    # Traefik-labels er harmløse lokalt; netværket oprettes som almindeligt bridge
+    networks:
+      - dokploy-network
+      - internal
+
+networks:
+  dokploy-network:
+    external: false
+    name: evaluering-local-edge

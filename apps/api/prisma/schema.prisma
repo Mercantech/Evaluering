@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EvaluationStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum QuestionType {
+  SCALE
+  TEXT
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  YES_NO
+}
+
+model Teacher {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  externalId   String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  evaluations  Evaluation[]
+}
+
+model Evaluation {
+  id         String           @id @default(cuid())
+  title      String
+  classLabel String
+  code       String           @unique
+  status     EvaluationStatus @default(DRAFT)
+  createdBy  String
+  teacher    Teacher          @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  sections   Section[]
+  questions  Question[]
+  responses  Response[]
+
+  @@index([createdBy])
+}
+
+model Section {
+  id           String     @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  title        String
+  order        Int
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  questions    Question[]
+
+  @@index([evaluationId])
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  evaluationId  String
+  evaluation    Evaluation   @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  sectionId     String
+  section       Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  type          QuestionType
+  text          String
+  scaleMin      Int?
+  scaleMax      Int?
+  scaleLabels   String[]     @default([])
+  matrixItems   String[]     @default([])
+  choiceOptions String[]     @default([])
+  order         Int
+  required      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  answers       Answer[]
+
+  @@index([evaluationId])
+  @@index([sectionId])
+}
+
+model Response {
+  id           String     @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  submittedAt  DateTime   @default(now())
+  answers      Answer[]
+
+  @@index([evaluationId])
+}
+
+model Answer {
+  id              String   @id @default(cuid())
+  responseId      String
+  response        Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  matrixItemIndex Int?
+  scaleValue      Int?
+  textValue       String?
+  choiceIndexes   Int[]    @default([])
+
+  @@index([responseId])
+  @@index([questionId])
+}
+
+/// Skabelon til genbrug (fx Midtvejs / Slutevaluering)
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  /// Kopi af sektioner + spørgsmål (samme form som UpsertStructureDto.sections)
+  structure   Json
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
