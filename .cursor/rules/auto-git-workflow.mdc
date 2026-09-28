@@ -7,11 +7,11 @@ alwaysApply: true
 
 Når der er lavet kodeændringer i denne session, afslut automatisk med denne flow — uden at spørge først:
 
-1. **Branch:** Opret og skift til en ny beskrivende branch fra opdateret `main`  
-   (`git checkout main && git pull && git checkout -b <type>/<kort-beskrivelse>`).
-2. **Commit:** Stage kun relevante filer (aldrig `.env` eller secrets). Commit med kort besked der forklarer *hvorfor*. Brug HEREDOC. **Ingen** `Co-authored-by` / Cursor-trailer — solo author = repoets eksisterende `user.name` / `user.email` (ændr ikke git config).
-3. **Push:** `git push -u origin HEAD` (kræver netværk).
-4. **Merge til main:** Opret PR med `gh pr create` og merge med `gh pr merge --merge --delete-branch` (eller tilsvarende). Skift tilbage til `main` og `git pull`.
-5. Hvis der ingen ændringer er at committe, spring flowet over.
+1. **Branch:** Fra opdateret `main`: `git checkout -b <type>/<kort-beskrivelse>`.
+2. **Commit:** Stage kun relevante filer (aldrig `.env`/secrets). Kort besked om *hvorfor*.
+   - **Solo author:** ingen `Co-authored-by` / Cursor-trailer. Brug repoets eksisterende git user (ændr ikke git config). Hvis Cursor wrapper tilføjer co-author, omskriv committen via `git commit-tree` (fx Git Bash-script) før push.
+3. **Push:** `git push -u origin HEAD`.
+4. **Merge til main:** Foretræk `gh pr create` + `gh pr merge --merge --delete-branch`. Hvis `gh` ikke er autentificeret: fast-forward merge lokalt til `main`, `git push origin main`, slet feature-branchen remote+lokalt.
+5. Afslut på `main` synket med `origin/main`. Ingen ændringer → spring over.
 
-Følg i øvrigt projektets Git Safety Protocol (ingen force push til main, ingen `--amend` medmindre betingelserne er opfyldt, ingen hooks skippes).
+Følg Git Safety Protocol (ingen force push til main, ingen hook-skip, begrænset amend).
