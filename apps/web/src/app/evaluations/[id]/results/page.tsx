@@ -269,7 +269,7 @@ export default function ResultsPage() {
         <section className="status-page status-page-full">
           <div className="status-card status-loading">
             <p className="join-brand status-brand">
-              MAGS <span>Evaluering</span>
+              Eval <span>Platform</span>
             </p>
             <div className="status-pulse" aria-hidden="true" />
             <p className="muted" style={{ margin: 0 }}>
@@ -287,7 +287,7 @@ export default function ResultsPage() {
         <section className="status-page status-page-full">
           <div className="status-card status-missing">
             <p className="join-brand status-brand">
-              MAGS <span>Evaluering</span>
+              Eval <span>Platform</span>
             </p>
             <p className="status-kicker">Noget gik galt</p>
             <h1 className="status-title">Kunne ikke hente resultater</h1>
@@ -317,7 +317,7 @@ export default function ResultsPage() {
       <div className="shell results-shell">
         <div className="topbar">
           <Link href="/dashboard" className="brand">
-            MAGS <span>Evaluering</span>
+            Eval <span>Platform</span>
           </Link>
           <div className="row">
             <Link href={`/evaluations/${id}`} className="btn ghost">

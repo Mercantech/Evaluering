@@ -53,7 +53,7 @@ export default function DashboardPage() {
     <main className="shell">
       <div className="topbar">
         <Link href="/dashboard" className="brand">
-          MAGS <span>Evaluering</span>
+          Eval <span>Platform</span>
         </Link>
         <div className="row">
           {teacher ? <span className="muted">{teacher.name}</span> : null}

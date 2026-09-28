@@ -505,7 +505,7 @@ export default function EvaluationBuilderPage() {
     <main className="shell">
       <div className="topbar">
         <Link href="/dashboard" className="brand">
-          MAGS <span>Evaluering</span>
+          Eval <span>Platform</span>
         </Link>
         <div className="row">
           <Link href={`/evaluations/${id}/present`} className="btn">

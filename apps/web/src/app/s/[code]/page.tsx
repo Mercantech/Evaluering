@@ -209,7 +209,7 @@ export default function StudentSurveyPage() {
       {!showStatus ? (
         <div className="topbar">
           <Link href="/" className="brand">
-            MAGS <span>Evaluering</span>
+            Eval <span>Platform</span>
           </Link>
         </div>
       ) : null}
@@ -218,7 +218,7 @@ export default function StudentSurveyPage() {
         <section className="status-page status-page-full">
           <div className="status-card status-loading">
             <p className="join-brand status-brand">
-              MAGS <span>Evaluering</span>
+              Eval <span>Platform</span>
             </p>
             <div className="status-pulse" aria-hidden="true" />
             <p className="muted" style={{ margin: 0 }}>
@@ -236,7 +236,7 @@ export default function StudentSurveyPage() {
             }`}
           >
             <p className="join-brand status-brand">
-              MAGS <span>Evaluering</span>
+              Eval <span>Platform</span>
             </p>
             <p className="status-kicker">
               {closedInfo.status === 'DRAFT' ? 'Ikke åben endnu' : 'Lukket'}
@@ -276,7 +276,7 @@ export default function StudentSurveyPage() {
         <section className="status-page status-page-full">
           <div className="status-card status-missing">
             <p className="join-brand status-brand">
-              MAGS <span>Evaluering</span>
+              Eval <span>Platform</span>
             </p>
             <p className="status-kicker">Ukendt kode</p>
             <h1 className="status-title">Vi finder ikke den evaluering</h1>
@@ -296,7 +296,7 @@ export default function StudentSurveyPage() {
         <section className="status-page status-page-full">
           <div className="status-card status-done">
             <p className="join-brand status-brand">
-              MAGS <span>Evaluering</span>
+              Eval <span>Platform</span>
             </p>
             <p className="status-kicker">Sendt</p>
             <h1 className="status-title">Tak for dit svar</h1>

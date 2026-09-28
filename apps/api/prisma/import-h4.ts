@@ -88,7 +88,7 @@ async function main() {
   }
 
   const teacherEmail = (
-    process.env.SEED_TEACHER_EMAIL || 'underviser@mags.local'
+    process.env.SEED_TEACHER_EMAIL || 'underviser@eval.local'
   ).toLowerCase();
   const teacher = await prisma.teacher.findUnique({
     where: { email: teacherEmail },

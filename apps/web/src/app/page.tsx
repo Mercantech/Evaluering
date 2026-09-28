@@ -37,7 +37,7 @@ export default function HomePage() {
 
       <section className="join-stage">
         <p className="join-brand">
-          MAGS <span>Evaluering</span>
+          Eval <span>Platform</span>
         </p>
         <h1 className="join-title">Din feedback tæller</h1>
         <p className="join-lead">

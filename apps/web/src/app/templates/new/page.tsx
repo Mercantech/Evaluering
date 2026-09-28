@@ -49,7 +49,7 @@ export default function NewTemplatePage() {
     <main className="shell">
       <div className="topbar">
         <Link href="/dashboard" className="brand">
-          MAGS <span>Evaluering</span>
+          Eval <span>Platform</span>
         </Link>
         <Link href="/templates" className="btn ghost">
           Tilbage

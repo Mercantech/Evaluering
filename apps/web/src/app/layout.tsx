@@ -13,7 +13,7 @@ const body = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: 'MAGS Evaluering',
+  title: 'Eval Platform',
   description: 'Evaluering af forløb – anonymt og enkelt',
 };
 

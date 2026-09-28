@@ -89,7 +89,7 @@ export default function NewEvaluationForm() {
     <main className="shell">
       <div className="topbar">
         <Link href="/dashboard" className="brand">
-          MAGS <span>Evaluering</span>
+          Eval <span>Platform</span>
         </Link>
         <Link href="/dashboard" className="btn ghost">
           Tilbage

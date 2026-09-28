@@ -475,7 +475,7 @@ export class EvaluationsService {
       throw new BadRequestException('Ingen skriftlige svar at analysere');
     }
 
-    const system = `Du er en dansk undervisningskonsulent hos MAGS. Du opsummerer anonyme elevsvar.
+    const system = `Du er en dansk undervisningskonsulent. Du opsummerer anonyme elevsvar.
 Skriv på dansk, klart og handlingsorienteret.
 Brug Markdown med ## til sektionsoverskrifter og - til punktlister.
 Hold punkterne korte (én linje). Opfind ikke citater – parafrasér tendenser.
@@ -580,7 +580,7 @@ Lav en AI-recap i præcis denne struktur:
         },
       );
 
-    const system = `Du er en dansk evalueringsanalytiker for undervisere på MAGS.
+    const system = `Du er en dansk evalueringsanalytiker for undervisere.
 Du laver en kort, professionel midtvejs-/evalueringsrapport på dansk.
 Brug Markdown med ## til sektionsoverskrifter, - til punkter og nummererede lister til anbefalinger.
 Basér dig kun på de data, du får. Undgå jargon. Vær ærlig men konstruktiv.`;

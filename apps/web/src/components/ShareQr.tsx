@@ -45,7 +45,7 @@ export function ShareQr({
     if (!dataUrl) return;
     const link = document.createElement('a');
     link.href = dataUrl;
-    link.download = `mags-evaluering-${code}.png`;
+    link.download = `eval-platform-${code}.png`;
     link.click();
   }
 

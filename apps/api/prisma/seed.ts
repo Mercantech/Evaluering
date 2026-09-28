@@ -151,9 +151,9 @@ const midtvejsStructure = [
 ];
 
 const MIDTVEJS_DESCRIPTION =
-  'Du er midt i et hovedforløb med mig (MAGS) som underviser. Jeg vil gerne have din feedback nu, så vi kan gøre resten af forløbet endnu bedre. Evalueringen er helt anonym – så vær gerne helt ærlig i dine svar!';
+  'Du er midt i et hovedforløb. Jeg vil gerne have din feedback nu, så vi kan gøre resten af forløbet endnu bedre. Evalueringen er helt anonym – så vær gerne helt ærlig i dine svar!';
 
-/** Baseret på MAGS Forms: H4 - 2026 Evaluering (Sluteval.pdf) */
+/** Baseret på Forms: H4 - 2026 Evaluering (Sluteval.pdf) */
 const slutStructure = [
   {
     title: 'Struktur',
@@ -296,7 +296,7 @@ const slutStructure = [
 ];
 
 const SLUT_DESCRIPTION =
-  'Du er netop færdig med et hovedforløb med mig (MAGS) som underviser. Jeg vil rigtig gerne have din feedback, så vi kan gøre det næste forløb endnu bedre. Evalueringen er helt anonym – så vær gerne helt ærlig i dine svar!';
+  'Du er netop færdig med et hovedforløb. Jeg vil rigtig gerne have din feedback, så vi kan gøre det næste forløb endnu bedre. Evalueringen er helt anonym – så vær gerne helt ærlig i dine svar!';
 
 /** Midtvejs for GF2 Programmering – learn.gf2.dk, tavle, opgaver/projekter */
 const gf2MidtvejsStructure = [
@@ -451,7 +451,7 @@ const gf2MidtvejsStructure = [
 ];
 
 const GF2_MIDTVEJS_DESCRIPTION =
-  'Du er midt i GF2 Programmering (ca. de første uger hos MAGS). Vi bruger learn.gf2.dk, tavleundervisning og opgaver/projekter sammen. Din feedback er anonym – fortæl gerne hvad der fungerer, og hvad der bør ændres fremadrettet.';
+  'Du er midt i GF2 Programmering (ca. de første uger på holdet). Vi bruger learn.gf2.dk, tavleundervisning og opgaver/projekter sammen. Din feedback er anonym – fortæl gerne hvad der fungerer, og hvad der bør ændres fremadrettet.';
 
 async function ensureTemplate(
   name: string,
@@ -482,18 +482,29 @@ async function ensureTemplate(
 
 async function main() {
   const email = (
-    process.env.SEED_TEACHER_EMAIL || 'underviser@mags.local'
+    process.env.SEED_TEACHER_EMAIL || 'underviser@eval.local'
   ).toLowerCase();
   const password = process.env.SEED_TEACHER_PASSWORD || 'changeme123';
   const name = process.env.SEED_TEACHER_NAME || 'Demo Underviser';
 
   const existing = await prisma.teacher.findUnique({ where: { email } });
   if (!existing) {
-    const passwordHash = await bcrypt.hash(password, 10);
-    await prisma.teacher.create({
-      data: { email, name, passwordHash },
+    const legacy = await prisma.teacher.findUnique({
+      where: { email: 'underviser@mags.local' },
     });
-    console.log(`Seeded teacher: ${email}`);
+    if (legacy) {
+      await prisma.teacher.update({
+        where: { id: legacy.id },
+        data: { email, name },
+      });
+      console.log(`Renamed seed teacher → ${email}`);
+    } else {
+      const passwordHash = await bcrypt.hash(password, 10);
+      await prisma.teacher.create({
+        data: { email, name, passwordHash },
+      });
+      console.log(`Seeded teacher: ${email}`);
+    }
   } else {
     console.log(`Seed teacher already exists: ${email}`);
   }

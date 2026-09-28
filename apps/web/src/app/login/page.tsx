@@ -8,7 +8,7 @@ import { setToken } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('underviser@mags.local');
+  const [email, setEmail] = useState('underviser@eval.local');
   const [password, setPassword] = useState('changeme123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function LoginPage() {
     <main className="shell">
       <div className="topbar">
         <Link href="/" className="brand">
-          MAGS <span>Evaluering</span>
+          Eval <span>Platform</span>
         </Link>
       </div>
       <section className="hero-join">

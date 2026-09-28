@@ -74,7 +74,7 @@ export default function PresentPage() {
     <main className="present-shell">
       <div className="present-top">
         <div>
-          <div className="present-kicker">MAGS Evaluering</div>
+          <div className="present-kicker">Eval Platform</div>
           <h1>{evaluation.title}</h1>
           <p>{evaluation.classLabel}</p>
         </div>

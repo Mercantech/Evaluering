@@ -1,0 +1,17 @@
+---
+description: Auto branch, commit, push and merge to main after code changes
+alwaysApply: true
+---
+
+# Git workflow (solo author)
+
+Når der er lavet kodeændringer i denne session, afslut automatisk med denne flow — uden at spørge først:
+
+1. **Branch:** Opret og skift til en ny beskrivende branch fra opdateret `main`  
+   (`git checkout main && git pull && git checkout -b <type>/<kort-beskrivelse>`).
+2. **Commit:** Stage kun relevante filer (aldrig `.env` eller secrets). Commit med kort besked der forklarer *hvorfor*. Brug HEREDOC. **Ingen** `Co-authored-by` / Cursor-trailer — solo author = repoets eksisterende `user.name` / `user.email` (ændr ikke git config).
+3. **Push:** `git push -u origin HEAD` (kræver netværk).
+4. **Merge til main:** Opret PR med `gh pr create` og merge med `gh pr merge --merge --delete-branch` (eller tilsvarende). Skift tilbage til `main` og `git pull`.
+5. Hvis der ingen ændringer er at committe, spring flowet over.
+
+Følg i øvrigt projektets Git Safety Protocol (ingen force push til main, ingen `--amend` medmindre betingelserne er opfyldt, ingen hooks skippes).

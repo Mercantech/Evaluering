@@ -293,7 +293,7 @@ export default function ResultsSlideshowPage() {
     return (
       <main className="slideshow-shell">
         <div className="slideshow-slide">
-          <p className="slideshow-kicker">MAGS Evaluering</p>
+          <p className="slideshow-kicker">Eval Platform</p>
           <h1>Ingen svar endnu</h1>
           <p>Når der er besvarelser, kan du afspille dem som slideshow.</p>
           <Link href={`/evaluations/${id}/results`} className="btn">
@@ -312,7 +312,7 @@ export default function ResultsSlideshowPage() {
       <div className="slideshow-chrome">
         <div className="slideshow-chrome-left">
           <span className="slideshow-brand">
-            MAGS <span>Evaluering</span>
+            Eval <span>Platform</span>
           </span>
           <span className="muted">
             {index + 1} / {slides.length}

@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'mags_evaluering_token';
+const TOKEN_KEY = 'eval_platform_token';
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;

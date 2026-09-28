@@ -1,6 +1,6 @@
-# MAGS Evaluering
+# Eval Platform
 
-Evaluering af forløb – anonymt Forms-agtigt værktøj til undervisere og elever.
+Neutral evalueringsplatform – anonymt Forms-agtigt værktøj til undervisere og elever.
 
 ## Stack
 
@@ -39,7 +39,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 ### Demo-underviser (seed)
 
-- E-mail: `underviser@mags.local`
+- E-mail: `underviser@eval.local`
 - Adgangskode: `changeme123`
 
 Skift værdierne i `.env` før produktion — især `JWT_SECRET` og `SEED_TEACHER_PASSWORD`.
