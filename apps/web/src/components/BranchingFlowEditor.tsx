@@ -259,6 +259,7 @@ function orderIndex(sections: DraftSection[], key: string, kind: 'section' | 'qu
 }
 
 export function BranchingFlowEditor({ sections, onChange }: Props) {
+  const [fullscreen, setFullscreen] = useState(false);
   const graph = useMemo(() => buildGraph(sections), [sections]);
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
@@ -269,6 +270,22 @@ export function BranchingFlowEditor({ sections, onChange }: Props) {
     setNodes(graph.nodes);
     setEdges(graph.edges);
   }, [graph, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    // ReactFlow needs a resize tick after layout change
+    window.setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [fullscreen]);
 
   const allQuestions = useMemo(
     () => sections.flatMap((s) => s.questions),
@@ -348,12 +365,22 @@ export function BranchingFlowEditor({ sections, onChange }: Props) {
   }
 
   return (
-    <div className="branching-editor">
-      <p className="muted branching-help">
-        Træk en kant fra et spørgsmål til en sektion eller et senere spørgsmål
-        for at vise målet, når betingelsen er opfyldt. Elementer uden kant er
-        altid synlige.
-      </p>
+    <div className={`branching-editor${fullscreen ? ' is-fullscreen' : ''}`}>
+      <div className="branching-toolbar">
+        <p className="muted branching-help">
+          Træk en kant fra et spørgsmål til en sektion eller et senere spørgsmål
+          for at vise målet, når betingelsen er opfyldt. Elementer uden kant er
+          altid synlige.
+        </p>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => setFullscreen((v) => !v)}
+          aria-pressed={fullscreen}
+        >
+          {fullscreen ? 'Luk fuld skærm' : 'Fuld skærm'}
+        </button>
+      </div>
       {warning ? <div className="error">{warning}</div> : null}
 
       <div className="branching-layout">

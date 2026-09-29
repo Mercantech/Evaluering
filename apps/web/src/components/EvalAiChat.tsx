@@ -25,6 +25,7 @@ type Props = {
   evaluationId: string;
   sections: DraftSection[];
   onApplyProposal: (sections: DraftSection[]) => void;
+  onClose?: () => void;
 };
 
 function newId() {
@@ -39,6 +40,7 @@ export function EvalAiChat({
   evaluationId,
   sections,
   onApplyProposal,
+  onClose,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -120,7 +122,20 @@ export function EvalAiChat({
   return (
     <aside className="eval-ai-chat panel stack">
       <div className="eval-ai-chat-header">
-        <h2>AI-assistent</h2>
+        <div className="eval-ai-chat-title-row">
+          <h2>AI-assistent</h2>
+          {onClose ? (
+            <button
+              type="button"
+              className="btn ghost eval-ai-chat-close"
+              onClick={onClose}
+              aria-label="Skjul AI-chat"
+              title="Skjul chat"
+            >
+              Skjul
+            </button>
+          ) : null}
+        </div>
         <p className="muted" style={{ margin: 0 }}>
           Chat om indhold og forgrening. Anvend opdaterer kladden — husk at
           gemme bagefter.

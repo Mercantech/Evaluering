@@ -73,6 +73,26 @@ export default function EvaluationBuilderPage() {
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('eval-ui-chat-open');
+      if (stored === '0') setChatOpen(false);
+      if (stored === '1') setChatOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function setChatOpenPersist(open: boolean) {
+    setChatOpen(open);
+    try {
+      window.localStorage.setItem('eval-ui-chat-open', open ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }
 
   const shareUrl = useMemo(() => {
     if (!evaluation || typeof window === 'undefined') return '';
@@ -639,7 +659,9 @@ export default function EvaluationBuilderPage() {
           </button>
         </form>
 
-        <div className="eval-builder-layout">
+        <div
+          className={`eval-builder-layout${chatOpen ? '' : ' chat-collapsed'}`}
+        >
         <div className="stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <div className="editor-tabs" role="tablist">
@@ -658,11 +680,22 @@ export default function EvaluationBuilderPage() {
                 Forgrening
               </button>
             </div>
-            {editorTab === 'content' ? (
-              <button className="btn ghost" type="button" onClick={addSection}>
-                + Sektion
-              </button>
-            ) : null}
+            <div className="row">
+              {!chatOpen ? (
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => setChatOpenPersist(true)}
+                >
+                  Vis AI-chat
+                </button>
+              ) : null}
+              {editorTab === 'content' ? (
+                <button className="btn ghost" type="button" onClick={addSection}>
+                  + Sektion
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {editorTab === 'branching' ? (
@@ -938,17 +971,20 @@ export default function EvaluationBuilderPage() {
           )}
         </div>
 
-        <EvalAiChat
-          evaluationId={id}
-          sections={sections}
-          onApplyProposal={(next) => {
-            setSections(next);
-            setEditorTab('content');
-            setMessage(
-              'AI-forslag anvendt i kladden — husk at gemme sektioner',
-            );
-          }}
-        />
+        <div className={chatOpen ? undefined : 'eval-ai-chat-slot-hidden'}>
+          <EvalAiChat
+            evaluationId={id}
+            sections={sections}
+            onClose={() => setChatOpenPersist(false)}
+            onApplyProposal={(next) => {
+              setSections(next);
+              setEditorTab('content');
+              setMessage(
+                'AI-forslag anvendt i kladden — husk at gemme sektioner',
+              );
+            }}
+          />
+        </div>
         </div>
 
         <div className="panel">
