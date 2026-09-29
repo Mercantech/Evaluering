@@ -2376,25 +2376,47 @@ select {
   margin: 0;
   padding: 1rem 1.25rem 1.25rem;
   background: #f3f6f4;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   height: 100vh;
   height: 100dvh;
+  width: 100vw;
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+.branching-editor.is-fullscreen .branching-toolbar,
+.branching-editor.is-fullscreen > .error {
+  flex: 0 0 auto;
 }
 
 .branching-editor.is-fullscreen .branching-layout {
+  flex: 1 1 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
+  align-items: stretch;
 }
 
 .branching-editor.is-fullscreen .branching-canvas {
-  height: 100%;
   min-height: 0;
+  height: auto;
+  align-self: stretch;
+  /* React Flow kræver en container med reel højde */
+  display: flex;
+  flex-direction: column;
+}
+
+.branching-editor.is-fullscreen .branching-canvas .react-flow {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
 .branching-editor.is-fullscreen .branching-sidebar {
   max-height: 100%;
   overflow: auto;
+  align-self: stretch;
 }
 
 .branching-sidebar h3 {
@@ -2588,6 +2610,7 @@ select {
   }
 
   .branching-editor.is-fullscreen .branching-canvas {
-    height: min(60vh, 100%);
+    height: 100%;
+    min-height: 50vh;
   }
 }
