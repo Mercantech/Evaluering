@@ -3,10 +3,40 @@
 import { FormEvent, Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { api, PublicEvaluation, Question } from '@/lib/api';
+import { api, PublicEvaluation, Question, Section } from '@/lib/api';
 import { labelForScaleValue, scaleValues } from '@/lib/scale';
+import {
+  AnswerSnapshot,
+  isVisible,
+  normalizeShowWhen,
+} from '@/lib/visibility';
 
 type ScaleAnswers = Record<string, number | undefined>;
+
+function buildAnswerMap(
+  questions: Question[],
+  scaleAnswers: Record<string, ScaleAnswers>,
+  textAnswers: Record<string, string>,
+  choiceAnswers: Record<string, number[]>,
+): Map<string, AnswerSnapshot> {
+  const map = new Map<string, AnswerSnapshot>();
+  for (const q of questions) {
+    const key = q.stableKey || q.id;
+    if (q.type === 'TEXT') {
+      map.set(key, { textValue: textAnswers[q.id] || '' });
+    } else if (q.type === 'SCALE') {
+      const rows = scaleAnswers[q.id] || {};
+      const scaleByRow: Record<number, number> = {};
+      for (const [k, v] of Object.entries(rows)) {
+        if (v !== undefined && v !== null) scaleByRow[Number(k)] = v;
+      }
+      map.set(key, { scaleByRow });
+    } else {
+      map.set(key, { choiceIndexes: choiceAnswers[q.id] || [] });
+    }
+  }
+  return map;
+}
 
 export default function StudentSurveyPage() {
   const params = useParams<{ code: string }>();
@@ -19,7 +49,7 @@ export default function StudentSurveyPage() {
     code: string;
     status: string;
   } | null>(null);
-  const [sectionIndex, setSectionIndex] = useState(0);
+  const [visibleSectionCursor, setVisibleSectionCursor] = useState(0);
   const [scaleAnswers, setScaleAnswers] = useState<
     Record<string, ScaleAnswers>
   >({});
@@ -32,7 +62,7 @@ export default function StudentSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const sections = useMemo(() => {
+  const allSections = useMemo((): Section[] => {
     if (!evaluation) return [];
     if (evaluation.sections && evaluation.sections.length > 0) {
       return evaluation.sections;
@@ -47,8 +77,84 @@ export default function StudentSurveyPage() {
     ];
   }, [evaluation]);
 
-  const currentSection = sections[sectionIndex];
-  const isLast = sectionIndex >= sections.length - 1;
+  const allQuestions = useMemo(
+    () => allSections.flatMap((s) => s.questions),
+    [allSections],
+  );
+
+  const answersByKey = useMemo(
+    () =>
+      buildAnswerMap(allQuestions, scaleAnswers, textAnswers, choiceAnswers),
+    [allQuestions, scaleAnswers, textAnswers, choiceAnswers],
+  );
+
+  const visibleSections = useMemo(() => {
+    return allSections
+      .filter((section) =>
+        isVisible(normalizeShowWhen(section.showWhen), answersByKey),
+      )
+      .map((section) => ({
+        ...section,
+        questions: section.questions.filter((q) =>
+          isVisible(normalizeShowWhen(q.showWhen), answersByKey),
+        ),
+      }))
+      .filter((section) => section.questions.length > 0);
+  }, [allSections, answersByKey]);
+
+  const currentSection = visibleSections[visibleSectionCursor];
+  const isLast = visibleSectionCursor >= visibleSections.length - 1;
+
+  // Keep cursor in range when visibility changes
+  useEffect(() => {
+    if (visibleSections.length === 0) {
+      setVisibleSectionCursor(0);
+      return;
+    }
+    if (visibleSectionCursor > visibleSections.length - 1) {
+      setVisibleSectionCursor(visibleSections.length - 1);
+    }
+  }, [visibleSections.length, visibleSectionCursor]);
+
+  // Clear answers for questions that became hidden
+  useEffect(() => {
+    const visibleIds = new Set(
+      visibleSections.flatMap((s) => s.questions.map((q) => q.id)),
+    );
+    setScaleAnswers((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id of Object.keys(next)) {
+        if (!visibleIds.has(id)) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    setTextAnswers((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id of Object.keys(next)) {
+        if (!visibleIds.has(id) && next[id]) {
+          next[id] = '';
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    setChoiceAnswers((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id of Object.keys(next)) {
+        if (!visibleIds.has(id) && (next[id] || []).length > 0) {
+          next[id] = [];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [visibleSections]);
 
   useEffect(() => {
     api
@@ -130,7 +236,9 @@ export default function StudentSurveyPage() {
     setError('');
     try {
       validateSection(currentSection.questions);
-      setSectionIndex((i) => Math.min(i + 1, sections.length - 1));
+      setVisibleSectionCursor((i) =>
+        Math.min(i + 1, Math.max(visibleSections.length - 1, 0)),
+      );
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Udfyld sektionen');
@@ -139,7 +247,7 @@ export default function StudentSurveyPage() {
 
   function goBack() {
     setError('');
-    setSectionIndex((i) => Math.max(i - 1, 0));
+    setVisibleSectionCursor((i) => Math.max(i - 1, 0));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -151,7 +259,7 @@ export default function StudentSurveyPage() {
     try {
       validateSection(currentSection.questions);
 
-      const allQuestions = sections.flatMap((s) => s.questions);
+      const visibleQuestions = visibleSections.flatMap((s) => s.questions);
       const payload: Array<{
         questionId: string;
         scaleValue?: number;
@@ -160,7 +268,7 @@ export default function StudentSurveyPage() {
         choiceIndexes?: number[];
       }> = [];
 
-      for (const q of allQuestions) {
+      for (const q of visibleQuestions) {
         if (q.type === 'TEXT') {
           payload.push({
             questionId: q.id,
@@ -203,6 +311,9 @@ export default function StudentSurveyPage() {
   const showStatus = Boolean(
     loading || closedInfo || done || (error && !evaluation && !closedInfo),
   );
+
+  const progressTotal = Math.max(visibleSections.length, 1);
+  const progressCurrent = Math.min(visibleSectionCursor + 1, progressTotal);
 
   return (
     <main className={showStatus ? 'status-shell' : 'shell'}>
@@ -321,13 +432,13 @@ export default function StudentSurveyPage() {
 
           <div className="section-progress">
             <span>
-              Sektion {sectionIndex + 1} af {sections.length}
+              Sektion {progressCurrent} af {progressTotal}
             </span>
             <div className="section-progress-track">
               <div
                 className="section-progress-fill"
                 style={{
-                  width: `${((sectionIndex + 1) / sections.length) * 100}%`,
+                  width: `${(progressCurrent / progressTotal) * 100}%`,
                 }}
               />
             </div>
@@ -469,7 +580,7 @@ export default function StudentSurveyPage() {
                 className="btn ghost"
                 type="button"
                 onClick={goBack}
-                disabled={sectionIndex === 0 || submitting}
+                disabled={visibleSectionCursor === 0 || submitting}
               >
                 Tilbage
               </button>

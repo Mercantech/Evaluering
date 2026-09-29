@@ -6,6 +6,11 @@ import {
 import { EvaluationStatus, QuestionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitResponseDto } from './dto/submit-response.dto';
+import {
+  AnswerSnapshot,
+  isVisible,
+  normalizeShowWhen,
+} from '../common/visibility';
 
 @Injectable()
 export class PublicService {
@@ -54,6 +59,9 @@ export class PublicService {
           : q.choiceOptions ?? [],
       order: q.order,
       required: q.required,
+      stableKey: q.stableKey,
+      showWhen: normalizeShowWhen(q.showWhen),
+      sectionId: q.sectionId,
     });
 
     return {
@@ -67,9 +75,10 @@ export class PublicService {
         id: section.id,
         title: section.title,
         order: section.order,
+        stableKey: section.stableKey,
+        showWhen: normalizeShowWhen(section.showWhen),
         questions: section.questions.map(mapQuestion),
       })),
-      // Flat list kept for clients that still expect it
       questions: evaluation.sections.flatMap((s) =>
         s.questions.map(mapQuestion),
       ),
@@ -79,7 +88,13 @@ export class PublicService {
   async submit(code: string, dto: SubmitResponseDto) {
     const evaluation = await this.prisma.evaluation.findUnique({
       where: { code: code.toUpperCase() },
-      include: { questions: true },
+      include: {
+        sections: {
+          orderBy: { order: 'asc' },
+          include: { questions: { orderBy: { order: 'asc' } } },
+        },
+        questions: true,
+      },
     });
     if (!evaluation) {
       throw new NotFoundException('Evaluering ikke fundet');
@@ -89,9 +104,26 @@ export class PublicService {
     }
 
     const questionMap = new Map(evaluation.questions.map((q) => [q.id, q]));
+    const answersByKey = this.buildAnswerSnapshots(dto, evaluation.questions);
+    const visibleQuestionIds = new Set<string>();
+
+    for (const section of evaluation.sections) {
+      const sectionShow = normalizeShowWhen(section.showWhen);
+      if (!isVisible(sectionShow, answersByKey)) continue;
+      for (const question of section.questions) {
+        const qShow = normalizeShowWhen(question.showWhen);
+        if (!isVisible(qShow, answersByKey)) continue;
+        visibleQuestionIds.add(question.id);
+      }
+    }
+
+    const visibleAnswers = dto.answers.filter((a) =>
+      visibleQuestionIds.has(a.questionId),
+    );
 
     for (const question of evaluation.questions) {
-      const related = dto.answers.filter((a) => a.questionId === question.id);
+      if (!visibleQuestionIds.has(question.id)) continue;
+      const related = visibleAnswers.filter((a) => a.questionId === question.id);
 
       if (question.type === QuestionType.TEXT) {
         if (question.required && related.length === 0) {
@@ -132,7 +164,7 @@ export class PublicService {
       }
     }
 
-    for (const answer of dto.answers) {
+    for (const answer of visibleAnswers) {
       const question = questionMap.get(answer.questionId);
       if (!question) {
         throw new BadRequestException('Ukendt spørgsmål i svar');
@@ -221,7 +253,7 @@ export class PublicService {
       data: {
         evaluationId: evaluation.id,
         answers: {
-          create: dto.answers.map((a) => {
+          create: visibleAnswers.map((a) => {
             const question = questionMap.get(a.questionId)!;
             const isScale = question.type === QuestionType.SCALE;
             const isText = question.type === QuestionType.TEXT;
@@ -244,5 +276,51 @@ export class PublicService {
     });
 
     return { id: response.id, submittedAt: response.submittedAt };
+  }
+
+  private buildAnswerSnapshots(
+    dto: SubmitResponseDto,
+    questions: Array<{
+      id: string;
+      stableKey: string;
+      type: QuestionType;
+    }>,
+  ): Map<string, AnswerSnapshot> {
+    const byId = new Map(questions.map((q) => [q.id, q]));
+    const map = new Map<string, AnswerSnapshot>();
+
+    for (const answer of dto.answers) {
+      const question = byId.get(answer.questionId);
+      if (!question) continue;
+      const key = question.stableKey;
+      const existing = map.get(key) || {};
+
+      if (
+        question.type === QuestionType.SINGLE_CHOICE ||
+        question.type === QuestionType.MULTI_CHOICE ||
+        question.type === QuestionType.YES_NO
+      ) {
+        existing.choiceIndexes = [...new Set(answer.choiceIndexes ?? [])];
+      } else if (question.type === QuestionType.TEXT) {
+        existing.textValue = answer.textValue ?? null;
+      } else if (question.type === QuestionType.SCALE) {
+        if (
+          answer.matrixItemIndex !== undefined &&
+          answer.matrixItemIndex !== null &&
+          answer.scaleValue !== undefined &&
+          answer.scaleValue !== null
+        ) {
+          existing.scaleByRow = {
+            ...(existing.scaleByRow || {}),
+            [answer.matrixItemIndex]: answer.scaleValue,
+          };
+        } else if (answer.scaleValue !== undefined) {
+          existing.scaleValue = answer.scaleValue;
+        }
+      }
+      map.set(key, existing);
+    }
+
+    return map;
   }
 }

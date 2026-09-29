@@ -28,12 +28,16 @@ export type Question = {
   order: number;
   required: boolean;
   sectionId?: string;
+  stableKey?: string;
+  showWhen?: import('./visibility').ShowWhen | null;
 };
 
 export type Section = {
   id: string;
   title: string;
   order: number;
+  stableKey?: string;
+  showWhen?: import('./visibility').ShowWhen | null;
   questions: Question[];
 };
 
@@ -60,11 +64,15 @@ export type QuestionInput = {
   choiceOptions?: string[];
   order?: number;
   required?: boolean;
+  stableKey?: string;
+  showWhen?: import('./visibility').ShowWhen | null;
 };
 
 export type SectionInput = {
   title: string;
   order?: number;
+  stableKey?: string;
+  showWhen?: import('./visibility').ShowWhen | null;
   questions: QuestionInput[];
 };
 

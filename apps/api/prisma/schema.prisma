@@ -55,10 +55,15 @@ model Section {
   evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
   title        String
   order        Int
+  /// Stabil nøgle til forgrening (overlever upsert)
+  stableKey    String
+  /// Vis kun når betingelse er opfyldt (JSON: VisibilityCondition | { anyOf: ... })
+  showWhen     Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   questions    Question[]
 
+  @@unique([evaluationId, stableKey])
   @@index([evaluationId])
 }
 
@@ -77,10 +82,15 @@ model Question {
   choiceOptions String[]     @default([])
   order         Int
   required      Boolean      @default(true)
+  /// Stabil nøgle til forgrening (overlever upsert)
+  stableKey     String
+  /// Vis kun når betingelse er opfyldt
+  showWhen      Json?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   answers       Answer[]
 
+  @@unique([evaluationId, stableKey])
   @@index([evaluationId])
   @@index([sectionId])
 }

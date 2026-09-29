@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { StructureEditor } from '@/components/StructureEditor';
+import { BranchingFlowEditor } from '@/components/BranchingFlowEditor';
 import {
   DraftSection,
   draftsToSectionInputs,
@@ -20,6 +21,7 @@ export default function EditTemplatePage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [sections, setSections] = useState<DraftSection[]>([]);
+  const [editorTab, setEditorTab] = useState<'content' | 'branching'>('content');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,30 @@ export default function EditTemplatePage() {
             </div>
           </div>
 
-          <StructureEditor sections={sections} onChange={setSections} />
+          <div className="editor-tabs" role="tablist">
+            <button
+              type="button"
+              className={`editor-tab ${editorTab === 'content' ? 'active' : ''}`}
+              onClick={() => setEditorTab('content')}
+            >
+              Indhold
+            </button>
+            <button
+              type="button"
+              className={`editor-tab ${editorTab === 'branching' ? 'active' : ''}`}
+              onClick={() => setEditorTab('branching')}
+            >
+              Forgrening
+            </button>
+          </div>
+
+          {editorTab === 'branching' ? (
+            <div className="panel">
+              <BranchingFlowEditor sections={sections} onChange={setSections} />
+            </div>
+          ) : (
+            <StructureEditor sections={sections} onChange={setSections} />
+          )}
 
           <div className="row">
             <button className="btn" type="submit" disabled={saving}>

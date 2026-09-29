@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Min,
@@ -54,6 +55,15 @@ export class QuestionInputDto {
   @IsOptional()
   @IsBoolean()
   required?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  stableKey?: string;
+
+  @IsOptional()
+  @IsObject()
+  showWhen?: Record<string, unknown> | null;
 }
 
 export class SectionInputDto {
@@ -65,6 +75,15 @@ export class SectionInputDto {
   @IsInt()
   @Min(0)
   order?: number;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  stableKey?: string;
+
+  @IsOptional()
+  @IsObject()
+  showWhen?: Record<string, unknown> | null;
 
   @IsArray()
   @ValidateNested({ each: true })

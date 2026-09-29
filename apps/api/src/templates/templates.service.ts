@@ -10,6 +10,7 @@ import {
   UpsertTemplateDto,
 } from './dto/upsert-template.dto';
 import { questionToInput, StructureSection } from '../common/structure.util';
+import { normalizeShowWhen } from '../common/visibility';
 import { QuestionInputDto } from '../evaluations/dto/upsert-questions.dto';
 
 @Injectable()
@@ -91,6 +92,8 @@ export class TemplatesService {
       (section, sIndex) => ({
         title: section.title,
         order: section.order ?? sIndex,
+        stableKey: section.stableKey,
+        showWhen: normalizeShowWhen(section.showWhen) as StructureSection['showWhen'],
         questions: section.questions.map((q) => questionToInput(q)),
       }),
     );

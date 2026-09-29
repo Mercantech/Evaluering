@@ -143,6 +143,7 @@ async function main() {
           evaluationId: created.id,
           title: sectionDef.title,
           order: sectionDef.order,
+          stableKey: `sec-${sectionDef.order}-${Date.now().toString(36)}`,
         },
       });
       for (const q of sectionDef.questions) {
@@ -159,6 +160,7 @@ async function main() {
             choiceOptions: [],
             order: q.order,
             required: q.required ?? true,
+            stableKey: `q-${sectionDef.order}-${q.order}-${Date.now().toString(36)}`,
           },
         });
       }

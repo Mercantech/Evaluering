@@ -1,11 +1,21 @@
 import { QuestionType } from '@prisma/client';
 import { QuestionInputDto } from '../evaluations/dto/upsert-questions.dto';
+import { normalizeShowWhen, ShowWhen } from './visibility';
+import { Prisma } from '@prisma/client';
 
 export type StructureSection = {
   title: string;
   order?: number;
+  stableKey?: string;
+  showWhen?: ShowWhen | Record<string, unknown> | null;
   questions: QuestionInputDto[];
 };
+
+function ensureKey(prefix: string, provided: string | undefined, index: number) {
+  const trimmed = provided?.trim();
+  if (trimmed) return trimmed;
+  return `${prefix}-${index}-${Date.now().toString(36)}`;
+}
 
 export function mapQuestionData(
   evaluationId: string,
@@ -29,6 +39,7 @@ export function mapQuestionData(
     : isChoice
       ? (q.choiceOptions ?? []).map((o) => o.trim()).filter(Boolean)
       : [];
+  const showWhen = normalizeShowWhen(q.showWhen ?? null);
 
   return {
     evaluationId,
@@ -41,6 +52,8 @@ export function mapQuestionData(
     choiceOptions,
     order: q.order ?? index,
     required: q.required ?? true,
+    stableKey: ensureKey('q', q.stableKey, index),
+    showWhen: (showWhen as Prisma.InputJsonValue | null) ?? undefined,
   };
 }
 
@@ -54,6 +67,8 @@ export function questionToInput(q: {
   choiceOptions: string[];
   order: number;
   required: boolean;
+  stableKey?: string;
+  showWhen?: unknown;
 }): QuestionInputDto {
   return {
     type: q.type,
@@ -65,5 +80,7 @@ export function questionToInput(q: {
     choiceOptions: q.choiceOptions ?? [],
     order: q.order,
     required: q.required,
+    stableKey: q.stableKey,
+    showWhen: (normalizeShowWhen(q.showWhen) as Record<string, unknown> | null) ?? null,
   };
 }

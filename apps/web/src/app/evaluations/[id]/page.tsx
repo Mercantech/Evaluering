@@ -19,12 +19,14 @@ import {
 } from '@/lib/scale';
 import { questionTypeLabel } from '@/lib/questionTypes';
 import { ShareQr } from '@/components/ShareQr';
+import { BranchingFlowEditor } from '@/components/BranchingFlowEditor';
 import {
   createDraftQuestion,
   DraftQuestion,
   DraftSection,
+  draftsToSectionInputs,
   mapApiQuestionToDraft,
-  toQuestionInput,
+  mapApiSectionToDraft,
 } from '@/lib/draftQuestions';
 
 function statusLabel(status: string) {
@@ -60,6 +62,7 @@ export default function EvaluationBuilderPage() {
   const [title, setTitle] = useState('');
   const [classLabel, setClassLabel] = useState('');
   const [sections, setSections] = useState<DraftSection[]>([]);
+  const [editorTab, setEditorTab] = useState<'content' | 'branching'>('content');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -82,17 +85,16 @@ export default function EvaluationBuilderPage() {
     setResponseCount(data._count?.responses ?? 0);
     if (data.sections && data.sections.length > 0) {
       setSections(
-        data.sections.map((section, sIndex) => ({
-          key: section.id,
-          title: section.title,
-          questions: (section.questions || []).map(mapApiQuestionToDraft),
-        })),
+        data.sections.map((section, sIndex) =>
+          mapApiSectionToDraft(section, sIndex),
+        ),
       );
     } else {
       setSections([
         {
           key: `section-${Date.now()}`,
           title: 'Sektion 1',
+          showWhen: null,
           questions: (data.questions || []).map(mapApiQuestionToDraft),
         },
       ]);
@@ -403,11 +405,7 @@ export default function EvaluationBuilderPage() {
     setError('');
     setMessage('');
     try {
-      const payload: SectionInput[] = sections.map((section, sIndex) => ({
-        title: section.title.trim(),
-        order: sIndex,
-        questions: section.questions.map(toQuestionInput),
-      }));
+      const payload: SectionInput[] = draftsToSectionInputs(sections);
       const updated = await api.upsertStructure(token, id, payload);
       applyEvaluation(updated);
       setMessage('Sektioner og spørgsmål gemt');
@@ -642,12 +640,43 @@ export default function EvaluationBuilderPage() {
 
         <div className="stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2>Sektioner</h2>
-            <button className="btn ghost" type="button" onClick={addSection}>
-              + Sektion
-            </button>
+            <div className="editor-tabs" role="tablist">
+              <button
+                type="button"
+                className={`editor-tab ${editorTab === 'content' ? 'active' : ''}`}
+                onClick={() => setEditorTab('content')}
+              >
+                Indhold
+              </button>
+              <button
+                type="button"
+                className={`editor-tab ${editorTab === 'branching' ? 'active' : ''}`}
+                onClick={() => setEditorTab('branching')}
+              >
+                Forgrening
+              </button>
+            </div>
+            {editorTab === 'content' ? (
+              <button className="btn ghost" type="button" onClick={addSection}>
+                + Sektion
+              </button>
+            ) : null}
           </div>
 
+          {editorTab === 'branching' ? (
+            <div className="panel stack">
+              <BranchingFlowEditor sections={sections} onChange={setSections} />
+              <button
+                className="btn"
+                type="button"
+                disabled={saving}
+                onClick={saveStructure}
+              >
+                Gem forgrening
+              </button>
+            </div>
+          ) : (
+            <>
           {sections.map((section, sectionIndex) => (
             <div className="panel stack section-card" key={section.key}>
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -903,6 +932,8 @@ export default function EvaluationBuilderPage() {
           >
             Gem sektioner
           </button>
+            </>
+          )}
         </div>
 
         <div className="panel">

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EvaluationStatus, QuestionType } from '@prisma/client';
+import { EvaluationStatus, Prisma, QuestionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEvaluationDto } from './dto/create-evaluation.dto';
 import { UpdateEvaluationDto } from './dto/update-evaluation.dto';
@@ -14,6 +14,10 @@ import {
 } from './dto/upsert-questions.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { mapQuestionData, StructureSection } from '../common/structure.util';
+import {
+  conditionsFromShowWhen,
+  normalizeShowWhen,
+} from '../common/visibility';
 import { TemplatesService } from '../templates/templates.service';
 import { AiService } from '../ai/ai.service';
 
@@ -77,6 +81,13 @@ export class EvaluationsService {
               evaluationId: evaluation.id,
               title: section.title.trim(),
               order: section.order ?? sIndex,
+              stableKey:
+                section.stableKey?.trim() ||
+                `sec-${sIndex}-${Date.now().toString(36)}`,
+              showWhen:
+                (normalizeShowWhen(section.showWhen ?? null) as
+                  | Prisma.InputJsonValue
+                  | undefined) ?? undefined,
               questions: {
                 create: (section.questions || []).map((q, qIndex) =>
                   mapQuestionData(evaluation.id, q, qIndex),
@@ -91,6 +102,7 @@ export class EvaluationsService {
             evaluationId: evaluation.id,
             title: 'Sektion 1',
             order: 0,
+            stableKey: `sec-0-${Date.now().toString(36)}`,
           },
         });
       }
@@ -163,15 +175,24 @@ export class EvaluationsService {
       throw new BadRequestException('Tilføj mindst ét spørgsmål');
     }
 
+    this.validateBranching(dto);
+
     return this.prisma.$transaction(async (tx) => {
       await tx.section.deleteMany({ where: { evaluationId: id } });
 
       for (const [sIndex, section] of dto.sections.entries()) {
+        const sectionKey =
+          section.stableKey?.trim() ||
+          `sec-${sIndex}-${Date.now().toString(36)}`;
+        const sectionShowWhen = normalizeShowWhen(section.showWhen ?? null);
         await tx.section.create({
           data: {
             evaluationId: id,
             title: section.title.trim(),
             order: section.order ?? sIndex,
+            stableKey: sectionKey,
+            showWhen:
+              (sectionShowWhen as Prisma.InputJsonValue | null) ?? undefined,
             questions: {
               create: section.questions.map((q, qIndex) =>
                 this.mapQuestionCreate(id, q, qIndex),
@@ -186,6 +207,65 @@ export class EvaluationsService {
         include: evaluationDetailInclude,
       });
     });
+  }
+
+  private validateBranching(dto: UpsertStructureDto) {
+    const questionOrder = new Map<string, number>();
+    const sectionOrder = new Map<string, number>();
+    const allKeys = new Set<string>();
+    let seq = 0;
+
+    for (const [sIndex, section] of dto.sections.entries()) {
+      const sKey =
+        section.stableKey?.trim() || `sec-${sIndex}`;
+      if (allKeys.has(sKey)) {
+        throw new BadRequestException(`Duplikeret stableKey: ${sKey}`);
+      }
+      allKeys.add(sKey);
+      sectionOrder.set(sKey, seq++);
+      for (const [qIndex, q] of section.questions.entries()) {
+        const qKey = q.stableKey?.trim() || `q-${sIndex}-${qIndex}`;
+        if (allKeys.has(qKey)) {
+          throw new BadRequestException(`Duplikeret stableKey: ${qKey}`);
+        }
+        allKeys.add(qKey);
+        questionOrder.set(qKey, seq++);
+      }
+    }
+
+    const checkShowWhen = (
+      targetKey: string,
+      targetSeq: number,
+      showWhenRaw: unknown,
+      label: string,
+    ) => {
+      const showWhen = normalizeShowWhen(showWhenRaw);
+      for (const cond of conditionsFromShowWhen(showWhen)) {
+        if (!questionOrder.has(cond.sourceKey)) {
+          throw new BadRequestException(
+            `${label} (${targetKey}): ukendt kilde ${cond.sourceKey}`,
+          );
+        }
+        const sourceSeq = questionOrder.get(cond.sourceKey)!;
+        if (sourceSeq >= targetSeq) {
+          throw new BadRequestException(
+            `${label} (${targetKey}): kilden skal komme før målet i rækkefølgen`,
+          );
+        }
+      }
+    };
+
+    seq = 0;
+    for (const [sIndex, section] of dto.sections.entries()) {
+      const sKey = section.stableKey?.trim() || `sec-${sIndex}`;
+      const sSeq = sectionOrder.get(sKey)!;
+      checkShowWhen(sKey, sSeq, section.showWhen, 'Sektion');
+      for (const [qIndex, q] of section.questions.entries()) {
+        const qKey = q.stableKey?.trim() || `q-${sIndex}-${qIndex}`;
+        const qSeq = questionOrder.get(qKey)!;
+        checkShowWhen(qKey, qSeq, q.showWhen, 'Spørgsmål');
+      }
+    }
   }
 
   private validateQuestionInput(q: QuestionInputDto) {
@@ -270,6 +350,12 @@ export class EvaluationsService {
       choiceOptions,
       order: q.order ?? index,
       required: q.required ?? true,
+      stableKey:
+        q.stableKey?.trim() || `q-${index}-${Date.now().toString(36)}`,
+      showWhen:
+        (normalizeShowWhen(q.showWhen ?? null) as
+          | Prisma.InputJsonValue
+          | undefined) ?? undefined,
     };
   }
 
