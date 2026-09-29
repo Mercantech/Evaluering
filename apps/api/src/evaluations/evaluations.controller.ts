@@ -16,6 +16,7 @@ import { CreateEvaluationDto } from './dto/create-evaluation.dto';
 import { UpdateEvaluationDto } from './dto/update-evaluation.dto';
 import { UpsertStructureDto } from './dto/upsert-questions.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { AiBuilderChatDto } from './dto/ai-builder-chat.dto';
 
 @Controller('evaluations')
 @UseGuards(JwtAuthGuard)
@@ -65,6 +66,15 @@ export class EvaluationsController {
     @Param('id') id: string,
   ) {
     return this.evaluationsService.aiFullReport(teacher.id, id);
+  }
+
+  @Post(':id/ai/builder-chat')
+  aiBuilderChat(
+    @CurrentTeacher() teacher: { id: string },
+    @Param('id') id: string,
+    @Body() dto: AiBuilderChatDto,
+  ) {
+    return this.evaluationsService.aiBuilderChat(teacher.id, id, dto);
   }
 
   @Get(':id')

@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { EvaluationStatus, Prisma, QuestionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,6 +14,7 @@ import {
   UpsertStructureDto,
 } from './dto/upsert-questions.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { AiBuilderChatDto } from './dto/ai-builder-chat.dto';
 import { mapQuestionData, StructureSection } from '../common/structure.util';
 import {
   conditionsFromShowWhen,
@@ -20,6 +22,16 @@ import {
 } from '../common/visibility';
 import { TemplatesService } from '../templates/templates.service';
 import { AiService } from '../ai/ai.service';
+
+const QUESTION_TYPES = new Set<string>(Object.values(QuestionType));
+
+type BuilderProposalSection = {
+  title: string;
+  order?: number;
+  stableKey?: string;
+  showWhen?: Record<string, unknown> | null;
+  questions: QuestionInputDto[];
+};
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -719,6 +731,214 @@ Kort neutral afslutning underviseren kan dele.`;
       content,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  async aiBuilderChat(teacherId: string, id: string, dto: AiBuilderChatDto) {
+    const evaluation = await this.prisma.evaluation.findUnique({
+      where: { id },
+      include: evaluationDetailInclude,
+    });
+    if (!evaluation) throw new NotFoundException('Evaluering ikke fundet');
+    this.assertOwner(evaluation.createdBy, teacherId);
+
+    const currentStructure =
+      dto.currentStructure && dto.currentStructure.length > 0
+        ? dto.currentStructure
+        : evaluation.sections.map((section, sIndex) => ({
+            title: section.title,
+            order: section.order ?? sIndex,
+            stableKey: section.stableKey,
+            showWhen: (normalizeShowWhen(section.showWhen) as Record<
+              string,
+              unknown
+            > | null) ?? null,
+            questions: section.questions.map((q) => ({
+              type: q.type,
+              text: q.text,
+              scaleMin: q.scaleMin ?? undefined,
+              scaleMax: q.scaleMax ?? undefined,
+              scaleLabels: q.scaleLabels ?? [],
+              matrixItems: q.matrixItems ?? [],
+              choiceOptions: q.choiceOptions ?? [],
+              order: q.order,
+              required: q.required,
+              stableKey: q.stableKey,
+              showWhen: (normalizeShowWhen(q.showWhen) as Record<
+                string,
+                unknown
+              > | null) ?? null,
+            })),
+          }));
+
+    const system = `Du er en dansk assistent der hjælper undervisere med at bygge elev-evalueringer i Eval Platform.
+Svar altid på dansk. Vær konkret og kort.
+
+Du skal ALTID svare med et JSON-objekt (ingen markdown udenom):
+{
+  "reply": "din besked til underviseren",
+  "proposal": null eller { "sections": [ ... ] }
+}
+
+Sæt "proposal" til et komplet strukturforslag når underviseren beder om at oprette/ændre spørgsmål, sektioner eller forgrening — eller når du selv foreslår en konkret struktur. Ellers null.
+Når proposal sættes, skal det være den FULDE struktur (alle sektioner), ikke kun ændrede dele. Bevar eksisterende stableKey hvor muligt.
+
+Spørgsmålstyper: SCALE, TEXT, SINGLE_CHOICE, MULTI_CHOICE, YES_NO.
+
+Schema for hvert spørgsmål:
+- type, text, required (bool), stableKey (string), order (number)
+- SCALE: scaleMin, scaleMax, scaleLabels (array), matrixItems (rækker, mindst én)
+- SINGLE_CHOICE / MULTI_CHOICE: choiceOptions (mindst 2)
+- YES_NO: choiceOptions ["Ja","Nej"] (valgfrit)
+- showWhen: null eller { "sourceKey": "<stableKey>", "op": "...", ... } eller { "anyOf": [ ... ] }
+  Ops: choiceEquals, choiceIn, choiceIncludesAny, choiceIncludesAll, scaleEq, scaleLt, scaleLte, scaleGt, scaleGte, scaleAnyRowLt/Lte/Gt/Gte, answered, empty
+  choiceIndexes er 0-baserede indekser i choiceOptions.
+
+Sektioner: title, stableKey, order, showWhen, questions[].
+
+Evaluering: "${evaluation.title}" / klasse "${evaluation.classLabel}".`;
+
+    const structureJson = JSON.stringify(
+      { sections: currentStructure },
+      null,
+      2,
+    );
+
+    const history = dto.messages.slice(-30).map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content.slice(0, 8000),
+    }));
+
+    const raw = await this.aiService.chat(
+      [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: `Nuværende struktur (JSON):\n${structureJson}\n\nSvar på den seneste besked i historikken nedenfor. Historik følger i de næste beskeder.`,
+        },
+        ...history,
+      ],
+      { json: true },
+    );
+
+    let parsed: { reply?: unknown; proposal?: unknown };
+    try {
+      parsed = JSON.parse(raw) as { reply?: unknown; proposal?: unknown };
+    } catch {
+      throw new ServiceUnavailableException(
+        'AI returnerede ugyldigt JSON-svar',
+      );
+    }
+
+    const reply =
+      typeof parsed.reply === 'string' && parsed.reply.trim()
+        ? parsed.reply.trim()
+        : 'Jeg har et forslag — se knappen Anvend hvis der er en struktur.';
+
+    const proposal = this.sanitizeBuilderProposal(parsed.proposal);
+
+    return {
+      reply,
+      proposal,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  private sanitizeBuilderProposal(
+    raw: unknown,
+  ): { sections: BuilderProposalSection[] } | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const root = raw as { sections?: unknown };
+    if (!Array.isArray(root.sections) || root.sections.length === 0) {
+      return null;
+    }
+
+    const sections: BuilderProposalSection[] = [];
+    for (let sIndex = 0; sIndex < root.sections.length; sIndex++) {
+      const s = root.sections[sIndex];
+      if (!s || typeof s !== 'object') continue;
+      const section = s as Record<string, unknown>;
+      const title =
+        typeof section.title === 'string' && section.title.trim()
+          ? section.title.trim()
+          : `Sektion ${sIndex + 1}`;
+      const questionsRaw = Array.isArray(section.questions)
+        ? section.questions
+        : [];
+      const questions: QuestionInputDto[] = [];
+      for (let qIndex = 0; qIndex < questionsRaw.length; qIndex++) {
+        const q = questionsRaw[qIndex];
+        if (!q || typeof q !== 'object') continue;
+        const row = q as Record<string, unknown>;
+        const typeRaw = String(row.type || '').toUpperCase();
+        if (!QUESTION_TYPES.has(typeRaw)) continue;
+        const type = typeRaw as QuestionType;
+        const text =
+          typeof row.text === 'string' && row.text.trim()
+            ? row.text.trim()
+            : `Spørgsmål ${qIndex + 1}`;
+        const stableKey =
+          typeof row.stableKey === 'string' && row.stableKey.trim()
+            ? row.stableKey.trim()
+            : `q-${sIndex}-${qIndex}`;
+        const question: QuestionInputDto = {
+          type,
+          text,
+          order: typeof row.order === 'number' ? row.order : qIndex,
+          required: row.required !== false,
+          stableKey,
+          showWhen:
+            (normalizeShowWhen(row.showWhen) as Record<
+              string,
+              unknown
+            > | null) ?? null,
+        };
+        if (type === QuestionType.SCALE) {
+          const min =
+            typeof row.scaleMin === 'number' ? row.scaleMin : 1;
+          const max =
+            typeof row.scaleMax === 'number' ? row.scaleMax : 4;
+          question.scaleMin = min;
+          question.scaleMax = max;
+          question.scaleLabels = Array.isArray(row.scaleLabels)
+            ? row.scaleLabels.map((l) => String(l))
+            : [];
+          const items = Array.isArray(row.matrixItems)
+            ? row.matrixItems.map((i) => String(i).trim()).filter(Boolean)
+            : [];
+          question.matrixItems = items.length > 0 ? items : [text];
+        } else if (
+          type === QuestionType.SINGLE_CHOICE ||
+          type === QuestionType.MULTI_CHOICE
+        ) {
+          const opts = Array.isArray(row.choiceOptions)
+            ? row.choiceOptions.map((o) => String(o).trim()).filter(Boolean)
+            : [];
+          question.choiceOptions =
+            opts.length >= 2 ? opts : ['Mulighed 1', 'Mulighed 2'];
+        } else if (type === QuestionType.YES_NO) {
+          question.choiceOptions = ['Ja', 'Nej'];
+        }
+        questions.push(question);
+      }
+      if (questions.length === 0) continue;
+      sections.push({
+        title,
+        order: typeof section.order === 'number' ? section.order : sIndex,
+        stableKey:
+          typeof section.stableKey === 'string' && section.stableKey.trim()
+            ? section.stableKey.trim()
+            : `section-${sIndex}`,
+        showWhen:
+          (normalizeShowWhen(section.showWhen) as Record<
+            string,
+            unknown
+          > | null) ?? null,
+        questions,
+      });
+    }
+
+    if (sections.length === 0) return null;
+    return { sections };
   }
 
   private assertOwner(ownerId: string, teacherId: string) {

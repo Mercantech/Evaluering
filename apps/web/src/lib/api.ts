@@ -139,6 +139,12 @@ export type AiInsightResult = {
   generatedAt: string;
 };
 
+export type AiBuilderChatResult = {
+  reply: string;
+  proposal: { sections: SectionInput[] } | null;
+  generatedAt: string;
+};
+
 export type PublicEvaluation = {
   open: true;
   status: EvaluationStatus;
@@ -342,6 +348,20 @@ export const api = {
     return request<AiInsightResult>(
       `/evaluations/${id}/ai/report`,
       { method: 'POST', body: '{}' },
+      token,
+    );
+  },
+  aiBuilderChat(
+    token: string,
+    id: string,
+    data: {
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+      currentStructure?: SectionInput[];
+    },
+  ) {
+    return request<AiBuilderChatResult>(
+      `/evaluations/${id}/ai/builder-chat`,
+      { method: 'POST', body: JSON.stringify(data) },
       token,
     );
   },

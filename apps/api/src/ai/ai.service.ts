@@ -4,6 +4,13 @@ import {
 } from '@nestjs/common';
 import OpenAI from 'openai';
 
+export type AiChatRole = 'system' | 'user' | 'assistant';
+
+export type AiChatMessage = {
+  role: AiChatRole;
+  content: string;
+};
+
 @Injectable()
 export class AiService {
   private client: OpenAI | null = null;
@@ -23,16 +30,29 @@ export class AiService {
   }
 
   async complete(system: string, user: string): Promise<string> {
+    return this.chat([
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ]);
+  }
+
+  async chat(
+    messages: AiChatMessage[],
+    options?: { json?: boolean },
+  ): Promise<string> {
     const client = this.getClient();
     const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
 
     try {
       const completion = await client.chat.completions.create({
         model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        ...(options?.json
+          ? { response_format: { type: 'json_object' as const } }
+          : {}),
       });
       const text = completion.choices[0]?.message?.content?.trim();
       if (!text) {

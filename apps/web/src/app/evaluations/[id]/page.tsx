@@ -20,6 +20,7 @@ import {
 import { questionTypeLabel } from '@/lib/questionTypes';
 import { ShareQr } from '@/components/ShareQr';
 import { BranchingFlowEditor } from '@/components/BranchingFlowEditor';
+import { EvalAiChat } from '@/components/EvalAiChat';
 import {
   createDraftQuestion,
   DraftQuestion,
@@ -638,6 +639,7 @@ export default function EvaluationBuilderPage() {
           </button>
         </form>
 
+        <div className="eval-builder-layout">
         <div className="stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <div className="editor-tabs" role="tablist">
@@ -934,6 +936,19 @@ export default function EvaluationBuilderPage() {
           </button>
             </>
           )}
+        </div>
+
+        <EvalAiChat
+          evaluationId={id}
+          sections={sections}
+          onApplyProposal={(next) => {
+            setSections(next);
+            setEditorTab('content');
+            setMessage(
+              'AI-forslag anvendt i kladden — husk at gemme sektioner',
+            );
+          }}
+        />
         </div>
 
         <div className="panel">
